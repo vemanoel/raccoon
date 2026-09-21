@@ -1,0 +1,38 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version"
+        type: string
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - run: |
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w" -o build/raccoon_${{ inputs.version }}_darwin-amd64 cmd/main.go
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o build/raccoon_${{ inputs.version }}_darwin-arm64 cmd/main.go
+          GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o build/raccoon_${{ inputs.version }}_linux-amd64 cmd/main.go
+          GOOS=linux GOARCH=386 go build -ldflags "-s -w" -o build/raccoon_${{ inputs.version }}_linux-386 cmd/main.go
+          GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o build/raccoon_${{ inputs.version }}_windows-amd64.exe cmd/main.go
+          GOOS=windows GOARCH=386 go build -ldflags "-s -w" -o build/raccoon_${{ inputs.version }}_windows-386.exe cmd/main.go
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: build/*
+          generate_release_notes: true
+          tag_name: v${{ inputs.version }}
