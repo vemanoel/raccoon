@@ -13,12 +13,7 @@ sudo zypper install --no-confirm --no-recommends brave-origin
 
 sudo zypper install git gtk2-engine-murrine sassc
 
-mkdir -p ${HOME}/.local/share/icons
-git clone https://github.com/bikass/kora.git
-cd kora
-cp -r kora* ${HOME}/.local/share/icons
-cd ..
-rm -rf kora
+sudo zypper install --no-confirm --no-recommends  kora-icon-theme
 
 mkdir -p ${HOME}/.local/share/themes
 sudo zypper install --no-confirm --no-recommends  gtk2-engine-murrine sassc
