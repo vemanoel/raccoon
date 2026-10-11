@@ -12,9 +12,8 @@ sudo zypper --gpg-auto-import-keys refresh brave-browser
 sudo zypper install --no-confirm --no-recommends brave-origin
 
 sudo zypper install --no-confirm --no-recommends kora-icon-theme
+xfconf-query -c xsettings -p /Net/IconThemeName -s "kora"
 
-mkdir -p ${HOME}/.local/share/themes
-sudo zypper install --no-confirm --no-recommends  gtk2-engine-murrine sassc
-git clone https://github.com/vinceliuice/Fluent-gtk-theme.git
-cd Fluent-gtk-theme
-./install.sh --size compact --color dark --theme grey --icon opensuse --tweaks noborder --dest ${HOME}/.local/share/themes
+xfconf-query -c xsettings -p /Net/ThemeName -s "Adwaita-dark"
+
+xfconf-query -c xfwm4 -p /general/theme -s "Greybird-geeko-dark"
