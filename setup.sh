@@ -11,9 +11,7 @@ sudo zypper addrepo https://brave-browser-rpm-release.s3.brave.com/brave-browser
 sudo zypper --gpg-auto-import-keys refresh brave-browser
 sudo zypper install --no-confirm --no-recommends brave-origin
 
-sudo zypper install git gtk2-engine-murrine sassc
-
-sudo zypper install --no-confirm --no-recommends  kora-icon-theme
+sudo zypper install --no-confirm --no-recommends kora-icon-theme
 
 mkdir -p ${HOME}/.local/share/themes
 sudo zypper install --no-confirm --no-recommends  gtk2-engine-murrine sassc
