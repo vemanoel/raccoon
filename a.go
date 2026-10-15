@@ -14,81 +14,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func copyDB(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(out, in)
-	if err != nil {
-		return err
-	}
-
-	return out.Close()
-}
-
-func openDB(profile string) (*sql.DB, func(), error) {
-	src := filepath.Join(profile, "cookies.sqlite")
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	tmp := filepath.Join(home, "raccoon", "databases")
-	err = os.MkdirAll(tmp, 0755)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	tmp, err = os.MkdirTemp(tmp, "database-*")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	dst := filepath.Join(tmp, filepath.Base(src))
-
-	err = copyDB(src, dst)
-	if err != nil {
-		os.RemoveAll(tmp)
-		return nil, nil, err
-	}
-
-	err = copyDB(src+"-wal", dst+"-wal")
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		os.RemoveAll(tmp)
-		return nil, nil, err
-	}
-
-	err = copyDB(src+"-shm", dst+"-shm")
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		os.RemoveAll(tmp)
-		return nil, nil, err
-	}
-
-	dsn := fmt.Sprintf("file:%s?mode=ro&immutable=1", dst)
-
-	db, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		os.RemoveAll(tmp)
-		return nil, nil, err
-	}
-
-	cleanup := func() {
-		db.Close()
-		os.RemoveAll(tmp)
-	}
-
-	return db, cleanup, nil
-}
-
 type Options struct {
 	Profile string
 	Host    string
@@ -159,4 +84,79 @@ func Get(opts Options) ([]*http.Cookie, error) {
 	}
 
 	return res, nil
+}
+
+func openDB(profile string) (*sql.DB, func(), error) {
+	src := filepath.Join(profile, "cookies.sqlite")
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tmp := filepath.Join(home, "raccoon", "databases")
+	err = os.MkdirAll(tmp, 0755)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tmp, err = os.MkdirTemp(tmp, "database-*")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	dst := filepath.Join(tmp, filepath.Base(src))
+
+	err = copyDB(src, dst)
+	if err != nil {
+		os.RemoveAll(tmp)
+		return nil, nil, err
+	}
+
+	err = copyDB(src+"-wal", dst+"-wal")
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		os.RemoveAll(tmp)
+		return nil, nil, err
+	}
+
+	err = copyDB(src+"-shm", dst+"-shm")
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		os.RemoveAll(tmp)
+		return nil, nil, err
+	}
+
+	dsn := fmt.Sprintf("file:%s?mode=ro&immutable=1", dst)
+
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		os.RemoveAll(tmp)
+		return nil, nil, err
+	}
+
+	cleanup := func() {
+		db.Close()
+		os.RemoveAll(tmp)
+	}
+
+	return db, cleanup, nil
+}
+
+func copyDB(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return err
+	}
+
+	return out.Close()
 }
