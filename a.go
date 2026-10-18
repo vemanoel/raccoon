@@ -107,19 +107,19 @@ func openDB(profile string) (*sql.DB, func(), error) {
 
 	dst := filepath.Join(tmp, filepath.Base(src))
 
-	err = copyDB(src, dst)
+	err = copyFile(src, dst)
 	if err != nil {
 		os.RemoveAll(tmp)
 		return nil, nil, err
 	}
 
-	err = copyDB(src+"-wal", dst+"-wal")
+	err = copyFile(src+"-wal", dst+"-wal")
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		os.RemoveAll(tmp)
 		return nil, nil, err
 	}
 
-	err = copyDB(src+"-shm", dst+"-shm")
+	err = copyFile(src+"-shm", dst+"-shm")
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		os.RemoveAll(tmp)
 		return nil, nil, err
@@ -141,7 +141,7 @@ func openDB(profile string) (*sql.DB, func(), error) {
 	return db, cleanup, nil
 }
 
-func copyDB(src, dst string) error {
+func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
