@@ -35,7 +35,8 @@ func Get(opts Options) ([]*http.Cookie, error) {
 			path,
 			isSecure,
 			expiry
-		FROM moz_cookies
+		FROM
+			moz_cookies
 	`)
 	if err != nil {
 		return nil, err
