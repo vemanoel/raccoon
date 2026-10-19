@@ -67,13 +67,13 @@ func (self *Request) Do(method, rawURL string) (*Response, error) {
 			resp.Body.Close()
 
 			if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
-				if retryAt, err := http.ParseTime(retryAfter); err == nil {
-					time.Sleep(time.Until(retryAt))
+				if secs, err := strconv.Atoi(retryAfter); err == nil {
+					time.Sleep(time.Duration(secs) * time.Second)
 					continue
 				}
 
-				if secs, err := strconv.Atoi(retryAfter); err == nil {
-					time.Sleep(time.Duration(secs) * time.Second)
+				if retryAt, err := http.ParseTime(retryAfter); err == nil {
+					time.Sleep(time.Until(retryAt))
 					continue
 				}
 			}
