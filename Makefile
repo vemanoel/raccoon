@@ -13,7 +13,6 @@ sh:
 
 build:
 	@podman compose exec -T development sh -ec "
-	rm -rf bin
 	GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w" -o bin/darwin-amd64 .
 	GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o bin/darwin-arm64 .
 	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/linux-amd64 .
