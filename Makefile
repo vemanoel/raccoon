@@ -8,8 +8,8 @@ up:
 down:
 	@podman compose down
 
-sh:
-	@podman compose exec development sh
+shell:
+	@podman compose exec dev sh
 
 build:
 	@podman compose exec -T development sh -ec "
