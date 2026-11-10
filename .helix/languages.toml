@@ -1,17 +1,5 @@
-[language-server.gopls]
-command = "podman"
-args = ["exec", "-i", "raccoon_dev", "gopls"]
-
-[language-server.gopls.config]
-completeUnimported = false
-# diagnosticsTrigger = "Save"
-
-[language-server.gopls.config.analyses]
-slicesdelete = true
-
 [[language]]
 name = "go"
 auto-format = true
-roots = ["go.work", "go.mod"]
-language-servers = [{ name = "gopls", except-features = ["format"] }]
 formatter = { command = "podman", args = ["exec", "-i", "raccoon_dev", "gofmt", "-s"] }
+
