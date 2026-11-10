@@ -1,0 +1,15 @@
+services:
+  development:
+    container_name: raccoon_development
+    image: localhost/raccoon:development
+    deploy:
+      resources:
+        limits:
+          cpus: 6.0
+          memory: 4G
+    build:
+      context: .
+      dockerfile: Containerfile
+    working_dir: $PWD
+    volumes: $PWD:$PWD:Z
+    command: sleep infinity
