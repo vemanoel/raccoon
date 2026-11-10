@@ -1,4 +1,4 @@
-package extractor
+package models
 
 type Media struct {
 	Name string

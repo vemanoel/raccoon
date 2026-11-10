@@ -16,8 +16,12 @@ func (self *Response) StatusCode() int {
 	return self.inner.StatusCode
 }
 
-func (self *Response) Close() error {
-	return self.inner.Body.Close()
+func (self *Response) Body() io.ReadCloser {
+	return self.inner.Body
+}
+
+func (self *Response) ContentLength() int64 {
+	return self.inner.ContentLength
 }
 
 func (self *Response) Bytes() ([]byte, error) {

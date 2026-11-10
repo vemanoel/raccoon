@@ -11,5 +11,7 @@ services:
       context: .
       dockerfile: Containerfile
     working_dir: $PWD
-    volumes: $PWD:$PWD:Z
+    volumes:
+      - $PWD:$PWD:Z
+      - ${RACCOON_BROWSER_PROFILE:?RACCOON_BROWSER_PROFILE not defined}:${RACCOON_BROWSER_PROFILE}:ro,Z
     command: sleep infinity
