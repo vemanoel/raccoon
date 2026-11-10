@@ -5,12 +5,12 @@
     cp .container/env.sample .container/env
     ```
 
-2. Set RACCOON_BROWSER_PROFILE in .container/env to the absolute path of your browser profile directory:
+2. Open `.container/env` and set the `RACCOON_BROWSER_PROFILE` variable to the absolute path of your local browser profile directory:
     ```bash
     RACCOON_BROWSER_PROFILE=/path/to/browser/profile
     ```
 
-2. Start the development environment:
+2. Build and start all required containerized services:
     ```bash
     make up
     ```
