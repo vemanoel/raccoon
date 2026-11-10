@@ -6,7 +6,7 @@ services:
       resources:
         limits:
           cpus: 6.0
-          memory: 4G
+          memory: 1G
     build:
       context: .
       dockerfile: Containerfile
@@ -15,3 +15,4 @@ services:
       - $PWD:$PWD:Z
       - ${RACCOON_BROWSER_PROFILE:?RACCOON_BROWSER_PROFILE not defined}:${RACCOON_BROWSER_PROFILE}:ro,Z
     command: sleep infinity
+
