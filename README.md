@@ -2,7 +2,7 @@
 
 1. Create your local environment configuration:
     ```bash
-    cp .container/env.sample .container/env
+    cp .container/env.example .container/env
     ```
 
 2. Open `.container/env` and set the `RACCOON_BROWSER_PROFILE` variable to the absolute path of your local browser profile directory:
