@@ -12,7 +12,7 @@ shell:
 	@podman compose exec dev sh
 
 build:
-	@podman compose exec -T development sh -ec "
+	@podman compose exec -T dev sh -ec "
 	GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w" -o bin/darwin-amd64 main.go
 	GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o bin/darwin-arm64 main.go
 	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/linux-amd64 main.go
