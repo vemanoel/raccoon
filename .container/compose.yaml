@@ -8,11 +8,11 @@ services:
           cpus: 6.0
           memory: 1G
     build:
-      context: .
-      dockerfile: Containerfile
-    working_dir: $PWD
+      context: ..
+      dockerfile: .container/Containerfile
+    working_dir: /workspace
     volumes:
-      - $PWD:$PWD:Z
+      - ..:/workspace:Z
       - ${RACCOON_BROWSER_PROFILE:?RACCOON_BROWSER_PROFILE not defined}:${RACCOON_BROWSER_PROFILE}:ro,Z
     command: sleep infinity
 
