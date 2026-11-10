@@ -1,7 +1,7 @@
 services:
-  development:
-    container_name: raccoon_development
-    image: localhost/raccoon:development
+  dev:
+    container_name: raccoon_dev
+    image: localhost/raccoon:dev
     deploy:
       resources:
         limits:
