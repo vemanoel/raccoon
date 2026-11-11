@@ -150,7 +150,7 @@ func arcticShiftRun(user string) ([]postData, error) {
 	for {
 		limit := 100
 
-		query := url.Values{
+		q := url.Values{
 			"limit":  {strconv.Itoa(limit)},
 			"sort":   {"desc"},
 			"author": {user},
@@ -161,7 +161,7 @@ func arcticShiftRun(user string) ([]postData, error) {
 			Scheme:   "https",
 			Host:     "arctic-shift.photon-reddit.com",
 			Path:     "api/posts/search",
-			RawQuery: query.Encode(),
+			RawQuery: q.Encode(),
 		}
 
 		req, err := httpclient.NewRequest("GET", u.String())
