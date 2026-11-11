@@ -9,8 +9,7 @@ import (
 
 type Config struct {
 	Arctic     bool
-	Profile    string
-	Username   string
+	Target   string
 	Flairs     string
 	Subreddits string
 	Since      string
@@ -20,7 +19,7 @@ type Config struct {
 
 type parsedConfig struct {
 	arctic     bool
-	username   string
+	target	   string
 	flairs     []string
 	subreddits []string
 	mediaTypes []string
@@ -28,14 +27,14 @@ type parsedConfig struct {
 	until      *time.Time
 }
 
-func (self Config) parseUsername() (string, error) {
-	if len(self.Username) > 20 || len(self.Username) < 3 {
+func (self Config) parseTarget() (string, error) {
+	if len(self.Target) > 20 || len(self.Target) < 3 {
 		return "", fmt.Errorf(
 			"username must be between 3 and 20 chars long",
 		)
 	}
 
-	for _, c := range self.Username {
+	for _, c := range self.Target {
 		switch {
 		case c >= 'A' && c <= 'Z':
 		case c >= 'a' && c <= 'z':
@@ -48,7 +47,7 @@ func (self Config) parseUsername() (string, error) {
 		}
 	}
 
-	return self.Username, nil
+	return self.Target, nil
 }
 
 func (self Config) parseFlairs() ([]string, error) {
@@ -138,7 +137,7 @@ func (self Config) parseUntil() (*time.Time, error) {
 }
 
 func (self Config) parse() (*parsedConfig, error) {
-	username, err := self.parseUsername()
+	target, err := self.parseTarget()
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +168,7 @@ func (self Config) parse() (*parsedConfig, error) {
 	}
 
 	return &parsedConfig{
-		username:   username,
+		target:   	target,
 		flairs:     flairs,
 		subreddits: subreddits,
 		since:      since,
