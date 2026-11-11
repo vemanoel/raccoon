@@ -105,7 +105,7 @@ func redditRun(user string) ([]postData, error) {
 			return nil, err
 		}
 
-		if resp.StatusCode() != 200 {
+		if resp.StatusCode() != http.StatusOK {
 			return nil, fmt.Errorf(
 				"unexpected status code: %d",
 				resp.StatusCode(),
