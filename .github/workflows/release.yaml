@@ -27,7 +27,7 @@ jobs:
           sudo apt-get install --yes podman-compose
 
       - name: Build artifacts
-        run: up build
+        run: make up build
         env:
           COMPOSE_FILE: .container/compose.ci.yaml
 
