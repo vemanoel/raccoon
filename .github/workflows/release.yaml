@@ -35,5 +35,5 @@ jobs:
         with:
           files: bin/*
           generate_release_notes: true
-          tag_name: v${{ inputs.version_name }}
+          tag_name: v${{ inputs.version }}
   
