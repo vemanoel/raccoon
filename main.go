@@ -8,15 +8,23 @@ import (
 )
 
 func main() {
-	posts, err := reddit.Fetch(reddit.Config{
+	extractor := reddit.RedditOptions{
 		Username: "lailaposts",
-	})
+	}
+	medias, err := extractor.Extract()
 	if err != nil {
 		panic(err)
 	}
 
-	for _, media := range posts {
-		err := transfer.Download(media.URL, "./downloads")
-		fmt.Println(err)
+	for _, media := range medias {
+		err := downloader.Download(
+			"./downloads/{{.site}}/{{.uploader}}/{{.upload_date}}-{{.name}}.{{.format}}",
+			media,
+		)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
+
+	fmt.Println(len(medias))
 }

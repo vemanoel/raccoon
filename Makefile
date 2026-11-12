@@ -1,8 +1,14 @@
 .ONESHELL:
 
-export PODMAN_COMPOSE_WARNING_LOGS = false
+export
 
-COMPOSE = podman compose -f .container/compose.yaml --env-file .container/env
+PODMAN_COMPOSE_WARNING_LOGS = false
+COMPOSE = podman compose
+COMPOSE_FILE ?= .container/compose.dev.yaml
+
+ifeq ($(COMPOSE_FILE),.container/compose.dev.yaml)
+    COMPOSE += --env-file .container/env
+endif
 
 up:
 	@$(COMPOSE) up --build --detach
@@ -11,7 +17,7 @@ down:
 	@$(COMPOSE) down
 
 shell:
-	@$(COMPOSE) exec dev bash
+	@$(COMPOSE) exec dev sh
 
 build:
 	@$(COMPOSE) exec -T dev bash -ec "

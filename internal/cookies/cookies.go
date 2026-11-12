@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"time"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -100,7 +101,7 @@ func openDB() (*sql.DB, func(), error) {
 	profile := os.Getenv("RACCOON_BROWSER_PROFILE")
 	if profile == "" {
 		return nil, nil, fmt.Errorf(
-			"RACCOON_BROWSER_PROFILE is not set",
+			"RACCOON_BROWSER_PROFILE is not defined",
 		)
 	}
 

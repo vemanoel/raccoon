@@ -1,44 +1,71 @@
-package transfer
+package downloader
 
 import (
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"time"
+	"path/filepath"
+	"strings"
+	"text/template"
 
 	"raccoon/internal/httpclient"
 )
 
-var client = httpclient.Client{
-	Limiter: &httpclient.Limiter{
-		MinInterval: time.Second,
-		MaxInterval: time.Second * 5,
-	},
+type progressReader struct {
+	reader  io.Reader
+	total   int64
+	current int64
 }
 
-type ProgressReader struct {
-	Reader  io.Reader
-	Total   int64
-	Current int64
-}
+func (self *progressReader) Read(b []byte) (int, error) {
+	n, err := self.reader.Read(b)
+	self.current += int64(n)
 
-func (p *ProgressReader) Read(b []byte) (int, error) {
-	n, err := p.Reader.Read(b)
-	p.Current += int64(n)
-
-	if p.Total > 0 {
-		percent := float64(p.Current) / float64(p.Total) * 100
-		fmt.Printf("\r%.2f%% (%d / %d bytes)", percent, p.Current, p.Total)
+	if self.total > 0 {
+		percent := float64(self.current) / float64(self.total) * 100
+		fmt.Printf("\r%.2f%% (%d / %d bytes)", percent, self.current, self.total)
 	} else {
-		fmt.Printf("\r%d bytes baixados", p.Current)
+		fmt.Printf("\r%d bytes baixados", self.current)
 	}
 
 	return n, err
 }
 
-func Download(url, path string) error {
-	req, err := httpclient.NewRequest("GET", url)
+func parseOutTmpl(s string, meta map[string]string) (string, error) {
+	tmpl := template.Must(template.New("out").Parse(s))
+
+	var buf strings.Builder
+
+	err := tmpl.Execute(&buf, map[string]string{
+		"site":        meta["site"],
+		"uploader":    meta["uploader"],
+		"name":        meta["name"],
+		"format":      meta["format"],
+		"upload_date": meta["upload_date"],
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+func Download(outTmpl string, meta map[string]string) error {
+	out, err := parseOutTmpl(outTmpl, meta)
+	if err != nil {
+		return err
+	}
+	fmt.Println(meta)
+	return nil
+
+	var client httpclient.Client
+
+	req, err := httpclient.NewRequest(
+		http.MethodGet,
+		meta["url"],
+	)
 	if err != nil {
 		return err
 	}
@@ -50,18 +77,24 @@ func Download(url, path string) error {
 	defer resp.Body().Close()
 
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
+		return fmt.Errorf(
+			"unexpected status code: %d",
+			resp.StatusCode(),
+		)
 	}
 
-	file, err := os.Create(path)
+	file, err := os.Create(filepath.Join(
+		out,
+		meta["name"]+meta["extension"],
+	))
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	progress := &ProgressReader{
-		Reader: resp.Body(),
-		Total:  resp.ContentLength(),
+	progress := &progressReader{
+		reader: resp.Body(),
+		total:  resp.ContentLength(),
 	}
 
 	_, err = io.Copy(file, progress)

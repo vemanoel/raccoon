@@ -8,22 +8,40 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"raccoon/internal/cookies"
 	"raccoon/internal/httpclient"
-	"raccoon/internal/models"
 )
+
+type RedditOptions struct {
+	Username string
+
+	NoImage   bool
+	NoGif     bool
+	NoGallery bool
+	NoVideo   bool
+
+	Since time.Time
+	Until time.Time
+}
 
 type postData struct {
 	ID            string  `json:"id"`
 	CreatedUTC    float64 `json:"created_utc"`
 	Author        string  `json:"author"`
 	Title         string  `json:"title"`
+	Subreddit     string  `json:"subreddit"`
 	URL           string  `json:"url"`
 	LinkFlairText string  `json:"link_flair_text"`
 	Domain        string  `json:"domain"`
+	SecureMedia   *struct {
+		Oembed struct {
+			Thumbnail string `json:"thumbnail_url"`
+		} `json:"oembed"`
+	} `json:"secure_media"`
 	MediaMetadata map[string]struct {
 		S struct {
 			U string `json:"u"`
@@ -31,22 +49,7 @@ type postData struct {
 	} `json:"media_metadata"`
 }
 
-type arcticShiftPage struct {
-	Error *string    `json:"error"`
-	Data  []postData `json:"data"`
-}
-
-type redditPage struct {
-	Data struct {
-		After    *string `json:"after"`
-		Children []struct {
-			Kind string   `json:"kind"`
-			Data postData `json:"data"`
-		} `json:"children"`
-	} `json:"data"`
-}
-
-func redditRun(user string) ([]postData, error) {
+func (self *RedditOptions) fetchRedditApi() ([]postData, error) {
 	client := httpclient.Client{
 		Limiter: &httpclient.Limiter{
 			MinInterval: time.Second,
@@ -57,8 +60,8 @@ func redditRun(user string) ([]postData, error) {
 	cookies, err := cookies.Get(
 		cookies.Options{
 			Names: []string{
-				"reddit_session",
 				"token_v2",
+				"reddit_session",
 			},
 			Host: cookies.HostOptions{
 				Name:     ".reddit.com",
@@ -70,7 +73,8 @@ func redditRun(user string) ([]postData, error) {
 		return nil, err
 	}
 
-	after, result := new(string), make([]postData, 0)
+	var res []postData
+	after := new(string)
 
 	for after != nil {
 		q := url.Values{
@@ -84,7 +88,7 @@ func redditRun(user string) ([]postData, error) {
 			Host:   "api.reddit.com",
 			Path: path.Join(
 				"user",
-				user,
+				self.Username,
 				"submitted",
 			),
 			RawQuery: q.Encode(),
@@ -106,15 +110,24 @@ func redditRun(user string) ([]postData, error) {
 		}
 
 		if resp.StatusCode() != http.StatusOK {
+			resp.Body().Close()
 			return nil, fmt.Errorf(
 				"unexpected status code: %d",
 				resp.StatusCode(),
 			)
 		}
 
-		var page redditPage
+		var json struct {
+			Data struct {
+				After    *string `json:"after"`
+				Children []struct {
+					Kind string   `json:"kind"`
+					Data postData `json:"data"`
+				} `json:"children"`
+			} `json:"data"`
+		}
 
-		err = resp.JSON(&page)
+		err = resp.JSON(&json)
 
 		resp.Body().Close()
 
@@ -122,29 +135,24 @@ func redditRun(user string) ([]postData, error) {
 			return nil, err
 		}
 
-		for _, child := range page.Data.Children {
-			result = append(result, child.Data)
+		for _, child := range json.Data.Children {
+			res = append(res, child.Data)
 		}
 
-		if page.Data.After == nil {
+		if json.Data.After == nil {
 			break
 		}
 
-		after = page.Data.After
+		after = json.Data.After
 	}
 
-	return result, nil
+	return res, nil
 }
 
-func arcticShiftRun(user string) ([]postData, error) {
-	client := httpclient.Client{
-		Limiter: &httpclient.Limiter{
-			MinInterval: time.Second,
-			MaxInterval: time.Second * 5,
-		},
-	}
+func (self *RedditOptions) fetchArcticShiftApi() ([]postData, error) {
+	var client httpclient.Client
 
-	var result []postData
+	var res []postData
 	before := time.Now().UTC().Unix()
 
 	for {
@@ -153,7 +161,7 @@ func arcticShiftRun(user string) ([]postData, error) {
 		q := url.Values{
 			"limit":  {strconv.Itoa(limit)},
 			"sort":   {"desc"},
-			"author": {user},
+			"author": {self.Username},
 			"before": {strconv.FormatInt(before, 10)},
 		}
 
@@ -164,7 +172,10 @@ func arcticShiftRun(user string) ([]postData, error) {
 			RawQuery: q.Encode(),
 		}
 
-		req, err := httpclient.NewRequest("GET", u.String())
+		req, err := httpclient.NewRequest(
+			http.MethodGet,
+			u.String(),
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -174,9 +185,20 @@ func arcticShiftRun(user string) ([]postData, error) {
 			return nil, err
 		}
 
-		var page arcticShiftPage
+		if resp.StatusCode() != http.StatusOK {
+			resp.Body().Close()
+			return nil, fmt.Errorf(
+				"unexpected status code: %d",
+				resp.StatusCode(),
+			)
+		}
 
-		err = resp.JSON(&page)
+		var json struct {
+			Error *string    `json:"error"`
+			Data  []postData `json:"data"`
+		}
+
+		err = resp.JSON(&json)
 
 		resp.Body().Close()
 
@@ -184,87 +206,99 @@ func arcticShiftRun(user string) ([]postData, error) {
 			return nil, err
 		}
 
-		if page.Error != nil {
-			return nil, errors.New(*page.Error)
+		if json.Error != nil {
+			return nil, errors.New(*json.Error)
 		}
 
-		result = append(result, page.Data...)
+		res = append(res, json.Data...)
 
-		if len(page.Data) == 0 || len(page.Data) < limit {
+		if len(json.Data) == 0 || len(json.Data) < limit {
 			break
 		}
 
-		before = int64(page.Data[len(page.Data)-1].CreatedUTC)
+		before = int64(json.Data[len(json.Data)-1].CreatedUTC)
 	}
 
-	return result, nil
+	return res, nil
 }
 
-func Fetch(config Config) ([]models.Media, error) {
-	cfg, err := config.parse()
-	if err != nil {
-		return nil, err
+func (self *RedditOptions) Extract() ([]map[string]string, error) {
+	if self.NoVideo && self.NoGallery && self.NoGif && self.NoImage {
+		return nil, nil
 	}
 
 	var wg sync.WaitGroup
-	var redditErr, arcticShiftErr error
-	var arcticShiftPosts, redditPosts []postData
+	var a, b []postData
+	var aErr, bErr error
 
 	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
-		arcticShiftPosts, arcticShiftErr = arcticShiftRun(cfg.username)
+		a, aErr = self.fetchRedditApi()
 	}()
 
 	go func() {
 		defer wg.Done()
-		redditPosts, redditErr = redditRun(cfg.username)
+		b, bErr = self.fetchArcticShiftApi()
 	}()
 
 	wg.Wait()
 
-	if redditErr != nil {
-		return nil, redditErr
+	if aErr != nil {
+		return nil, aErr
 	}
 
-	if arcticShiftErr != nil {
-		return nil, arcticShiftErr
+	if bErr != nil {
+		return nil, bErr
 	}
 
-	var result []models.Media
+	var res []map[string]string
 	seen := make(map[string]struct{})
 
-	for _, post := range append(arcticShiftPosts, redditPosts...) {
+	for _, post := range append(a, b...) {
 		if _, ok := seen[post.URL]; ok {
 			continue
 		}
 		seen[post.URL] = struct{}{}
 
+		meta := map[string]string{
+			"site":        "reddit",
+			"uploader":    post.Author,
+			"upload_date": time.Unix(int64(post.CreatedUTC), 0).UTC().Format("01-02-2006"),
+		}
+
 		switch post.Domain {
-		case "reddit.com":
-			if post.MediaMetadata == nil {
-				continue
-			}
-			for k, v := range post.MediaMetadata {
-				u, err := url.Parse(v.S.U)
+		case "redgifs.com":
+			if post.SecureMedia != nil {
+				u, err := url.Parse(post.SecureMedia.Oembed.Thumbnail)
 				if err != nil {
 					continue
 				}
 
-				u.Host = "i.redd.it"
-				u.Fragment = ""
-				u.RawQuery = ""
-				u.ForceQuery = false
+				u.Path = strings.Replace(u.Path, "-poster.jpg", "", 1)
 
-				result = append(result, models.Media{
-					URL: u.String(),
-					Meta: map[string]string{
-						"name":      k,
-						"uploader":  post.Author,
-						"extension": filepath.Ext(u.Path),
-					},
-				})
+				meta["name"] = path.Base(u.Path)
+				meta["url"] = u.String() + ".mp4"
+				meta["format"] = "mp4"
+			}
+		case "reddit.com":
+			if post.MediaMetadata != nil {
+				for k, v := range post.MediaMetadata {
+					u, err := url.Parse(v.S.U)
+					if err != nil {
+						continue
+					}
+
+					u.Host = "i.redd.it"
+					u.Fragment = ""
+					u.RawQuery = ""
+					u.ForceQuery = false
+
+					meta["name"] = k
+					meta["url"] = u.String()
+					meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
+				}
 			}
 		case "v.redd.it", "i.redd.it":
 			u, err := url.Parse(post.URL)
@@ -272,16 +306,13 @@ func Fetch(config Config) ([]models.Media, error) {
 				continue
 			}
 
-			result = append(result, models.Media{
-				URL: post.URL,
-				Meta: map[string]string{
-					"name":      post.ID,
-					"uploader":  post.Author,
-					"extension": filepath.Ext(u.Path),
-				},
-			})
+			meta["name"] = post.ID
+			meta["url"] = u.String()
+			meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
 		}
+
+		res = append(res, meta)
 	}
 
-	return result, nil
+	return res, nil
 }

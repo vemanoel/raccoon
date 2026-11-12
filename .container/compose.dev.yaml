@@ -1,0 +1,22 @@
+services:
+  dev:
+    container_name: raccoon_dev
+    image: localhost/raccoon:dev
+    build:
+      context: ..
+      dockerfile: .container/Containerfile
+    working_dir: /workspace
+    deploy:
+      resources:
+        limits:
+          cpus: 6.0
+          memory: 1G
+    # `env_file` injeta as variáveis diretamente dentro do
+    # contêiner, enquanto `compose up --env-file` as usa
+    # para preencher placeholders (${VAR}) no compose.yaml
+    env_file: env
+    volumes:
+      - ..:/workspace:Z
+      - $RACCOON_BROWSER_PROFILE:$RACCOON_BROWSER_PROFILE:ro,Z
+    command: sleep infinity
+

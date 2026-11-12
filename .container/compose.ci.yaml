@@ -1,0 +1,11 @@
+services:
+  dev:
+    image: localhost/raccoon:dev
+    build:
+      context: ..
+      dockerfile: .container/Containerfile
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace:Z
+    command: sleep infinity
+
