@@ -320,7 +320,7 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 	seen := make(map[string]struct{})
 	for i, meta := range res {
 		if _, ok := seen[meta["url"]]; ok {
-			slices.Delete(res, i, i+1)
+			res = slices.Delete(res, i, i+1)
 		} else {
 			seen[meta["url"]] = struct{}{}
 		}
