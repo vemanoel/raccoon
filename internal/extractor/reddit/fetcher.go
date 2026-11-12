@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,11 +19,6 @@ import (
 
 type RedditOptions struct {
 	Username string
-
-	NoImage   bool
-	NoGif     bool
-	NoGallery bool
-	NoVideo   bool
 
 	Since time.Time
 	Until time.Time
@@ -223,10 +219,6 @@ func (self *RedditOptions) fetchArcticShiftApi() ([]postData, error) {
 }
 
 func (self *RedditOptions) Extract() ([]map[string]string, error) {
-	if self.NoVideo && self.NoGallery && self.NoGif && self.NoImage {
-		return nil, nil
-	}
-
 	var wg sync.WaitGroup
 	var a, b []postData
 	var aErr, bErr error
@@ -254,14 +246,8 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 	}
 
 	var res []map[string]string
-	seen := make(map[string]struct{})
 
 	for _, post := range append(a, b...) {
-		if _, ok := seen[post.URL]; ok {
-			continue
-		}
-		seen[post.URL] = struct{}{}
-
 		meta := map[string]string{
 			"site":        "reddit",
 			"uploader":    post.Author,
@@ -270,35 +256,41 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 
 		switch post.Domain {
 		case "redgifs.com":
-			if post.SecureMedia != nil {
-				u, err := url.Parse(post.SecureMedia.Oembed.Thumbnail)
+			if post.SecureMedia == nil {
+				continue
+			}
+
+			u, err := url.Parse(post.SecureMedia.Oembed.Thumbnail)
+			if err != nil {
+				continue
+			}
+
+			u.Path = strings.Replace(u.Path, "-poster.jpg", "", 1)
+
+			meta["site"] = "gif"
+			meta["name"] = path.Base(u.Path)
+			meta["url"] = u.String() + ".mp4"
+			meta["format"] = "mp4"
+		case "reddit.com":
+			if post.MediaMetadata == nil {
+				continue
+			}
+
+			for k, v := range post.MediaMetadata {
+				u, err := url.Parse(v.S.U)
 				if err != nil {
 					continue
 				}
 
-				u.Path = strings.Replace(u.Path, "-poster.jpg", "", 1)
+				u.Host = "i.redd.it"
+				u.Fragment = ""
+				u.RawQuery = ""
+				u.ForceQuery = false
 
-				meta["name"] = path.Base(u.Path)
-				meta["url"] = u.String() + ".mp4"
-				meta["format"] = "mp4"
-			}
-		case "reddit.com":
-			if post.MediaMetadata != nil {
-				for k, v := range post.MediaMetadata {
-					u, err := url.Parse(v.S.U)
-					if err != nil {
-						continue
-					}
-
-					u.Host = "i.redd.it"
-					u.Fragment = ""
-					u.RawQuery = ""
-					u.ForceQuery = false
-
-					meta["name"] = k
-					meta["url"] = u.String()
-					meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
-				}
+				meta["site"] = "gallery"
+				meta["name"] = k
+				meta["url"] = u.String()
+				meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
 			}
 		case "v.redd.it", "i.redd.it":
 			u, err := url.Parse(post.URL)
@@ -306,12 +298,22 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 				continue
 			}
 
+			meta["site"] = "image_video"
 			meta["name"] = post.ID
 			meta["url"] = u.String()
 			meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
 		}
 
 		res = append(res, meta)
+	}
+
+	seen := make(map[string]struct{})
+	for i, meta := range res {
+		if _, ok := seen[meta["url"]]; ok {
+			slices.Delete(res, i, i+1)
+		} else {
+			seen[meta["url"]] = struct{}{}
+		}
 	}
 
 	return res, nil
