@@ -265,6 +265,10 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 				continue
 			}
 
+			if u.Host != "media.redgifs.com" {
+				continue
+			}
+
 			u.Path = strings.Replace(u.Path, "-poster.jpg", "", 1)
 
 			meta["site"] = "gif"
@@ -279,6 +283,10 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 			for k, v := range post.MediaMetadata {
 				u, err := url.Parse(v.S.U)
 				if err != nil {
+					continue
+				}
+
+				if u.Host != "preview.redd.it" {
 					continue
 				}
 
@@ -302,6 +310,8 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 			meta["name"] = post.ID
 			meta["url"] = u.String()
 			meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
+		default:
+			continue
 		}
 
 		res = append(res, meta)

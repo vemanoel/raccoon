@@ -44,7 +44,6 @@ func parseOutTmpl(s string, meta map[string]string) (string, error) {
 		"format":      meta["format"],
 		"upload_date": meta["upload_date"],
 	})
-
 	if err != nil {
 		return "", err
 	}
@@ -85,7 +84,7 @@ func Download(outTmpl string, meta map[string]string) error {
 
 	file, err := os.Create(filepath.Join(
 		out,
-		meta["name"]+meta["extension"],
+		meta["name"]+meta["format"],
 	))
 	if err != nil {
 		return err

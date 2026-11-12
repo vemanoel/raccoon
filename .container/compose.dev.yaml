@@ -17,6 +17,6 @@ services:
     env_file: env
     volumes:
       - ..:/workspace:Z
-      - $RACCOON_BROWSER_PROFILE:$RACCOON_BROWSER_PROFILE:ro,Z
+      - $RACCOON_BROWSER_PROFILE:$RACCOON_BROWSER_PROFILE:ro,z
     command: sleep infinity
 
