@@ -47,7 +47,7 @@ type postData struct {
 	} `json:"media_metadata"`
 }
 
-func (self *RedditOptions) Filter(post *postData) (map[string]string, bool) {
+func (self *RedditOptions) Filter(post *postData) map[string]string {
 	meta := map[string]string{
 		"site":        "reddit",
 		"uploader":    post.Author,
@@ -57,16 +57,16 @@ func (self *RedditOptions) Filter(post *postData) (map[string]string, bool) {
 	switch post.Domain {
 	case "redgifs.com":
 		if post.SecureMedia == nil {
-			return nil, false
+			return nil
 		}
 
 		u, err := url.Parse(post.SecureMedia.Oembed.Thumbnail)
 		if err != nil {
-			return nil, false
+			return nil
 		}
 
 		if u.Host != "media.redgifs.com" {
-			return nil, false
+			return nil
 		}
 
 		u.Path = strings.Replace(u.Path, "-poster.jpg", "", 1)
@@ -76,17 +76,17 @@ func (self *RedditOptions) Filter(post *postData) (map[string]string, bool) {
 		meta["format"] = "mp4"
 	case "reddit.com":
 		if post.MediaMetadata == nil {
-			return nil, false
+			return nil
 		}
 
 		for k, v := range post.MediaMetadata {
 			u, err := url.Parse(v.S.U)
 			if err != nil {
-				return nil, false
+				return nil
 			}
 
 			if u.Host != "preview.redd.it" {
-				return nil, false
+				return nil
 			}
 
 			u.Host = "i.redd.it"
@@ -101,17 +101,17 @@ func (self *RedditOptions) Filter(post *postData) (map[string]string, bool) {
 	case "v.redd.it", "i.redd.it":
 		u, err := url.Parse(post.URL)
 		if err != nil {
-			return nil, false
+			return nil
 		}
 
 		meta["name"] = post.ID
 		meta["url"] = u.String()
 		meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
 	default:
-		return nil, false
+		return nil
 	}
 
-	return meta, true
+	return meta
 }
 
 func (self *RedditOptions) fetchRedditApi(ch chan <- result) {
@@ -208,8 +208,8 @@ func (self *RedditOptions) fetchRedditApi(ch chan <- result) {
 
 		for i := range json.Data.Children {
 			child := json.Data.Children[i]
-			meta, ok := self.Filter(&child.Data)
-			if ok {
+			meta := self.Filter(&child.Data)
+			if meta != nil {
 				ch <- result{meta: meta}
 			}
 		}
@@ -288,8 +288,8 @@ func (self *RedditOptions) fetchArcticShiftApi(ch chan <- result) {
 		}
 
 		for i := range json.Data {
-			meta, ok := self.Filter(&json.Data[i])
-			if ok {
+			meta := self.Filter(&json.Data[i])
+			if meta != nil {
 				ch <- result{meta: meta}
 			}
 		}
