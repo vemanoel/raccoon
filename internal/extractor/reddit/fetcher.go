@@ -323,7 +323,7 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 	go func() {
 	    wg.Wait()
 		close(ch)
-	}
+	}()
 
     var res []map[string]string
     seen := make(map[string]any, len(ch))
@@ -340,7 +340,7 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
         }
 
         seen[u] = nil
-        res = append(res, meta)
+        res = append(res, item.meta)
     }
 
 	return res, nil
