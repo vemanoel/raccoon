@@ -202,7 +202,8 @@ func (self *RedditOptions) fetchRedditApi(ch chan <- result) {
 		resp.Body().Close()
 
 		if err != nil {
-			return nil, err
+			ch <- result{err: err}
+			return
 		}
 
 		for _, child := range json.Data.Children {
@@ -325,9 +326,9 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 	}
 
     var res []map[string]string
-    seen := make(map[string]any, len(a)+len(b))
+    seen := make(map[string]any, len(ch))
 
-    for _, item := range ch {
+    for item := range ch {
 		if item.err != nil {
 			return nil, item.err
 		}
