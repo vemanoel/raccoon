@@ -16,6 +16,7 @@ func main() {
 		panic(err)
 	}
 
+	count := 0
 	for _, media := range medias {
 		err := downloader.Download(
 			"./downloads/{{.site}}/{{.uploader}}/{{.upload_date}}-{{.name}}.{{.format}}",
@@ -24,7 +25,8 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		}
+		count++
 	}
 
-	fmt.Println(len(medias))
+	fmt.Println(count)
 }

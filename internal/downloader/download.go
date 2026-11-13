@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -56,8 +55,6 @@ func Download(outTmpl string, meta map[string]string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(meta)
-	return nil
 
 	var client httpclient.Client
 
@@ -82,21 +79,20 @@ func Download(outTmpl string, meta map[string]string) error {
 		)
 	}
 
-	file, err := os.Create(filepath.Join(
-		out,
-		meta["name"]+meta["format"],
-	))
+	return nil
+
+	f, err := os.Create(out)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer f.Close()
 
 	progress := &progressReader{
 		reader: resp.Body(),
 		total:  resp.ContentLength(),
 	}
 
-	_, err = io.Copy(file, progress)
+	_, err = io.Copy(f, progress)
 	fmt.Println()
 
 	return err

@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -246,6 +245,7 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 	}
 
 	var res []map[string]string
+	seen := make(map[string]struct{})
 
 	for _, post := range append(a, b...) {
 		meta := map[string]string{
@@ -271,7 +271,6 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 
 			u.Path = strings.Replace(u.Path, "-poster.jpg", "", 1)
 
-			meta["site"] = "gif"
 			meta["name"] = path.Base(u.Path)
 			meta["url"] = u.String() + ".mp4"
 			meta["format"] = "mp4"
@@ -295,7 +294,6 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 				u.RawQuery = ""
 				u.ForceQuery = false
 
-				meta["site"] = "gallery"
 				meta["name"] = k
 				meta["url"] = u.String()
 				meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
@@ -306,7 +304,6 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 				continue
 			}
 
-			meta["site"] = "image_video"
 			meta["name"] = post.ID
 			meta["url"] = u.String()
 			meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
@@ -314,16 +311,13 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 			continue
 		}
 
-		res = append(res, meta)
-	}
-
-	seen := make(map[string]struct{})
-	for i, meta := range res {
 		if _, ok := seen[meta["url"]]; ok {
-			res = slices.Delete(res, i, i+1)
-		} else {
-			seen[meta["url"]] = struct{}{}
+			continue
 		}
+
+		seen[meta["url"]] = struct{}{}
+
+		res = append(res, meta)
 	}
 
 	return res, nil
