@@ -313,18 +313,21 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 		return nil, bErr
 	}
 
-	var res []map[string]string
-	seen := make(map[string]struct{})
+    var res []map[string]string
+    seen := make(map[string]struct{}, len(a)+len(b))
 
-	for _, meta := range append(a, b...) {
-		if _, ok := seen[meta["url"]]; ok {
-			continue
-		}
+    for _, items := range [][]map[string]string{a, b} {
+        for _, meta := range items {
+            u := meta["url"]
 
-		seen[meta["url"]] = struct{}{}
+            if _, ok := seen[u]; ok {
+                continue
+            }
 
-		res = append(res, meta)
-	}
+            seen[u] = struct{}{}
+            res = append(res, meta)
+        }
+    }
 
 	return res, nil
 }
