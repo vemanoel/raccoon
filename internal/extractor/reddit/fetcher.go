@@ -16,6 +16,11 @@ import (
 	"raccoon/internal/httpclient"
 )
 
+type result struct {
+    meta map[string]string
+    err  error
+}
+
 type RedditOptions struct {
 	Username string
 
@@ -109,7 +114,7 @@ func (self *RedditOptions) Filter(post postData) (map[string]string, bool) {
 	return meta, true
 }
 
-func (self *RedditOptions) fetchRedditApi() ([]map[string]string, error) {
+func (self *RedditOptions) fetchRedditApi(ch chan <- result) {
 	client := httpclient.Client{
 		Limiter: &httpclient.Limiter{
 			MinInterval: time.Second,
@@ -130,10 +135,10 @@ func (self *RedditOptions) fetchRedditApi() ([]map[string]string, error) {
 		},
 	)
 	if err != nil {
-		return nil, err
+		ch <- result{err: err}
+		return
 	}
 
-	var res []map[string]string
 	after := new(string)
 
 	for after != nil {
@@ -159,22 +164,27 @@ func (self *RedditOptions) fetchRedditApi() ([]map[string]string, error) {
 			u.String(),
 		)
 		if err != nil {
-			return nil, err
+			ch <- result{err: err}
+			return
 		}
 
 		req.AddCookies(cookies...)
 
 		resp, err := client.Do(req)
 		if err != nil {
-			return nil, err
+			ch <- result{err: err}
+			return
 		}
 
 		if resp.StatusCode() != http.StatusOK {
 			resp.Body().Close()
-			return nil, fmt.Errorf(
-				"unexpected status code: %d",
-				resp.StatusCode(),
-			)
+			ch <- result{
+				err: fmt.Errorf(
+				  "unexpected status code: %d",
+				  resp.StatusCode(),
+			    ),
+			}
+			return
 		}
 
 		var json struct {
@@ -197,7 +207,7 @@ func (self *RedditOptions) fetchRedditApi() ([]map[string]string, error) {
 
 		for _, child := range json.Data.Children {
 			if meta, ok := self.Filter(child.Data); ok {
-				res = append(res, meta)
+				ch <- result{meta: meta}
 			}
 		}
 
@@ -208,13 +218,12 @@ func (self *RedditOptions) fetchRedditApi() ([]map[string]string, error) {
 		after = json.Data.After
 	}
 
-	return res, nil
+	return
 }
 
-func (self *RedditOptions) fetchArcticShiftApi() ([]map[string]string, error) {
+func (self *RedditOptions) fetchArcticShiftApi(ch chan <- result) {
 	var client httpclient.Client
 
-	var res []map[string]string
 	before := time.Now().UTC().Unix()
 
 	for {
@@ -237,20 +246,25 @@ func (self *RedditOptions) fetchArcticShiftApi() ([]map[string]string, error) {
 			u.String(),
 		)
 		if err != nil {
-			return nil, err
+			ch <- result{err: err}
+			return
 		}
 
 		resp, err := client.Do(req)
 		if err != nil {
-			return nil, err
+			ch <- result{err: err}
+			return
 		}
 
 		if resp.StatusCode() != http.StatusOK {
 			resp.Body().Close()
-			return nil, fmt.Errorf(
-				"unexpected status code: %d",
-				resp.StatusCode(),
-			)
+			ch <- result{
+				err: fmt.Errorf(
+				   "unexpected status code: %d",
+				    resp.StatusCode(),
+			    ),
+			}
+			return
 		}
 
 		var json struct {
@@ -263,16 +277,18 @@ func (self *RedditOptions) fetchArcticShiftApi() ([]map[string]string, error) {
 		resp.Body().Close()
 
 		if err != nil {
-			return nil, err
+			ch <- result{err: err}
+			return
 		}
 
 		if json.Error != nil {
-			return nil, errors.New(*json.Error)
+			ch <- result{err: errors.New(*json.Error)}
+			return
 		}
 
 		for _, post := range json.Data {
 			if meta, ok := self.Filter(post); ok {
-				res = append(res, meta)
+				ch <- result{meta: meta}
 			}
 		}
 
@@ -283,50 +299,47 @@ func (self *RedditOptions) fetchArcticShiftApi() ([]map[string]string, error) {
 		before = int64(json.Data[len(json.Data)-1].CreatedUTC)
 	}
 
-	return res, nil
+	return
 }
 
 func (self *RedditOptions) Extract() ([]map[string]string, error) {
 	var wg sync.WaitGroup
-	var a, b []map[string]string
-	var aErr, bErr error
 
 	wg.Add(2)
 
+	ch := make(chan result, 32)
+
 	go func() {
 		defer wg.Done()
-		a, aErr = self.fetchRedditApi()
+		self.fetchRedditApi(ch)
 	}()
 
 	go func() {
 		defer wg.Done()
-		b, bErr = self.fetchArcticShiftApi()
+		self.fetchArcticShiftApi(ch)
 	}()
 
-	wg.Wait()
-
-	if aErr != nil {
-		return nil, aErr
-	}
-
-	if bErr != nil {
-		return nil, bErr
+	go func() {
+	    wg.Wait()
+		close(ch)
 	}
 
     var res []map[string]string
-    seen := make(map[string]struct{}, len(a)+len(b))
+    seen := make(map[string]any, len(a)+len(b))
 
-    for _, items := range [][]map[string]string{a, b} {
-        for _, meta := range items {
-            u := meta["url"]
+    for _, item := range ch {
+		if item.err != nil {
+			return nil, item.err
+		}
 
-            if _, ok := seen[u]; ok {
-                continue
-            }
+        u := item.meta["url"]
 
-            seen[u] = struct{}{}
-            res = append(res, meta)
+        if _, ok := seen[u]; ok {
+             continue
         }
+
+        seen[u] = nil
+        res = append(res, meta)
     }
 
 	return res, nil
