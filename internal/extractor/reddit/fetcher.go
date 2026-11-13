@@ -218,10 +218,8 @@ func (self *RedditOptions) fetchArcticShiftApi() ([]map[string]string, error) {
 	before := time.Now().UTC().Unix()
 
 	for {
-		limit := 100
-
 		q := url.Values{
-			"limit":  {strconv.Itoa(limit)},
+			"limit":  {"auto"},
 			"sort":   {"desc"},
 			"author": {self.Username},
 			"before": {strconv.FormatInt(before, 10)},
@@ -278,7 +276,7 @@ func (self *RedditOptions) fetchArcticShiftApi() ([]map[string]string, error) {
 			}
 		}
 
-		if len(json.Data) == 0 || len(json.Data) < limit {
+		if len(json.Data) == 0 || len(json.Data) < 100 {
 			break
 		}
 
