@@ -47,7 +47,7 @@ type postData struct {
 	} `json:"media_metadata"`
 }
 
-func (self *RedditOptions) Filter(post postData) (map[string]string, bool) {
+func (self *RedditOptions) Filter(post *postData) (map[string]string, bool) {
 	meta := map[string]string{
 		"site":        "reddit",
 		"uploader":    post.Author,
@@ -206,8 +206,10 @@ func (self *RedditOptions) fetchRedditApi(ch chan <- result) {
 			return
 		}
 
-		for _, child := range json.Data.Children {
-			if meta, ok := self.Filter(child.Data); ok {
+		for i := range json.Data.Children {
+			child := json.Data.Children[i]
+			meta, ok := self.Filter(&child.Data)
+			if ok {
 				ch <- result{meta: meta}
 			}
 		}
@@ -218,8 +220,6 @@ func (self *RedditOptions) fetchRedditApi(ch chan <- result) {
 
 		after = json.Data.After
 	}
-
-	return
 }
 
 func (self *RedditOptions) fetchArcticShiftApi(ch chan <- result) {
@@ -287,8 +287,9 @@ func (self *RedditOptions) fetchArcticShiftApi(ch chan <- result) {
 			return
 		}
 
-		for _, post := range json.Data {
-			if meta, ok := self.Filter(post); ok {
+		for i := range json.Data {
+			meta, ok := self.Filter(&json.Data[i])
+			if ok {
 				ch <- result{meta: meta}
 			}
 		}
@@ -299,8 +300,6 @@ func (self *RedditOptions) fetchArcticShiftApi(ch chan <- result) {
 
 		before = int64(json.Data[len(json.Data)-1].CreatedUTC)
 	}
-
-	return
 }
 
 func (self *RedditOptions) Extract() ([]map[string]string, error) {
