@@ -23,7 +23,7 @@ func main() {
 			media,
 		)
 		if err != nil {
-			fmt.Println(err)
+			continue
 		}
 		count++
 	}

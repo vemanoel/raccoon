@@ -24,15 +24,13 @@ type RedditOptions struct {
 }
 
 type postData struct {
-	ID            string  `json:"id"`
-	CreatedUTC    float64 `json:"created_utc"`
-	Author        string  `json:"author"`
-	Title         string  `json:"title"`
-	Subreddit     string  `json:"subreddit"`
-	URL           string  `json:"url"`
-	LinkFlairText string  `json:"link_flair_text"`
-	Domain        string  `json:"domain"`
-	SecureMedia   *struct {
+	ID          string  `json:"id"`
+	CreatedUTC  float64 `json:"created_utc"`
+	Author      string  `json:"author"`
+	Subreddit   string  `json:"subreddit"`
+	URL         string  `json:"url"`
+	Domain      string  `json:"domain"`
+	SecureMedia *struct {
 		Oembed struct {
 			Thumbnail string `json:"thumbnail_url"`
 		} `json:"oembed"`
@@ -44,7 +42,74 @@ type postData struct {
 	} `json:"media_metadata"`
 }
 
-func (self *RedditOptions) fetchRedditApi() ([]postData, error) {
+func (self *RedditOptions) Filter(post postData) (map[string]string, bool) {
+	meta := map[string]string{
+		"site":        "reddit",
+		"uploader":    post.Author,
+		"upload_date": time.Unix(int64(post.CreatedUTC), 0).UTC().Format("01-02-2006"),
+	}
+
+	switch post.Domain {
+	case "redgifs.com":
+		if post.SecureMedia == nil {
+			return nil, false
+		}
+
+		u, err := url.Parse(post.SecureMedia.Oembed.Thumbnail)
+		if err != nil {
+			return nil, false
+		}
+
+		if u.Host != "media.redgifs.com" {
+			return nil, false
+		}
+
+		u.Path = strings.Replace(u.Path, "-poster.jpg", "", 1)
+
+		meta["name"] = path.Base(u.Path)
+		meta["url"] = u.String() + ".mp4"
+		meta["format"] = "mp4"
+	case "reddit.com":
+		if post.MediaMetadata == nil {
+			return nil, false
+		}
+
+		for k, v := range post.MediaMetadata {
+			u, err := url.Parse(v.S.U)
+			if err != nil {
+				return nil, false
+			}
+
+			if u.Host != "preview.redd.it" {
+				return nil, false
+			}
+
+			u.Host = "i.redd.it"
+			u.Fragment = ""
+			u.RawQuery = ""
+			u.ForceQuery = false
+
+			meta["name"] = k
+			meta["url"] = u.String()
+			meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
+		}
+	case "v.redd.it", "i.redd.it":
+		u, err := url.Parse(post.URL)
+		if err != nil {
+			return nil, false
+		}
+
+		meta["name"] = post.ID
+		meta["url"] = u.String()
+		meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
+	default:
+		return nil, false
+	}
+
+	return meta, true
+}
+
+func (self *RedditOptions) fetchRedditApi() ([]map[string]string, error) {
 	client := httpclient.Client{
 		Limiter: &httpclient.Limiter{
 			MinInterval: time.Second,
@@ -68,7 +133,7 @@ func (self *RedditOptions) fetchRedditApi() ([]postData, error) {
 		return nil, err
 	}
 
-	var res []postData
+	var res []map[string]string
 	after := new(string)
 
 	for after != nil {
@@ -131,7 +196,9 @@ func (self *RedditOptions) fetchRedditApi() ([]postData, error) {
 		}
 
 		for _, child := range json.Data.Children {
-			res = append(res, child.Data)
+			if meta, ok := self.Filter(child.Data); ok {
+				res = append(res, meta)
+			}
 		}
 
 		if json.Data.After == nil {
@@ -144,10 +211,10 @@ func (self *RedditOptions) fetchRedditApi() ([]postData, error) {
 	return res, nil
 }
 
-func (self *RedditOptions) fetchArcticShiftApi() ([]postData, error) {
+func (self *RedditOptions) fetchArcticShiftApi() ([]map[string]string, error) {
 	var client httpclient.Client
 
-	var res []postData
+	var res []map[string]string
 	before := time.Now().UTC().Unix()
 
 	for {
@@ -205,7 +272,11 @@ func (self *RedditOptions) fetchArcticShiftApi() ([]postData, error) {
 			return nil, errors.New(*json.Error)
 		}
 
-		res = append(res, json.Data...)
+		for _, post := range json.Data {
+			if meta, ok := self.Filter(post); ok {
+				res = append(res, meta)
+			}
+		}
 
 		if len(json.Data) == 0 || len(json.Data) < limit {
 			break
@@ -219,7 +290,7 @@ func (self *RedditOptions) fetchArcticShiftApi() ([]postData, error) {
 
 func (self *RedditOptions) Extract() ([]map[string]string, error) {
 	var wg sync.WaitGroup
-	var a, b []postData
+	var a, b []map[string]string
 	var aErr, bErr error
 
 	wg.Add(2)
@@ -247,70 +318,7 @@ func (self *RedditOptions) Extract() ([]map[string]string, error) {
 	var res []map[string]string
 	seen := make(map[string]struct{})
 
-	for _, post := range append(a, b...) {
-		meta := map[string]string{
-			"site":        "reddit",
-			"uploader":    post.Author,
-			"upload_date": time.Unix(int64(post.CreatedUTC), 0).UTC().Format("01-02-2006"),
-		}
-
-		switch post.Domain {
-		case "redgifs.com":
-			if post.SecureMedia == nil {
-				continue
-			}
-
-			u, err := url.Parse(post.SecureMedia.Oembed.Thumbnail)
-			if err != nil {
-				continue
-			}
-
-			if u.Host != "media.redgifs.com" {
-				continue
-			}
-
-			u.Path = strings.Replace(u.Path, "-poster.jpg", "", 1)
-
-			meta["name"] = path.Base(u.Path)
-			meta["url"] = u.String() + ".mp4"
-			meta["format"] = "mp4"
-		case "reddit.com":
-			if post.MediaMetadata == nil {
-				continue
-			}
-
-			for k, v := range post.MediaMetadata {
-				u, err := url.Parse(v.S.U)
-				if err != nil {
-					continue
-				}
-
-				if u.Host != "preview.redd.it" {
-					continue
-				}
-
-				u.Host = "i.redd.it"
-				u.Fragment = ""
-				u.RawQuery = ""
-				u.ForceQuery = false
-
-				meta["name"] = k
-				meta["url"] = u.String()
-				meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
-			}
-		case "v.redd.it", "i.redd.it":
-			u, err := url.Parse(post.URL)
-			if err != nil {
-				continue
-			}
-
-			meta["name"] = post.ID
-			meta["url"] = u.String()
-			meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
-		default:
-			continue
-		}
-
+	for _, meta := range append(a, b...) {
 		if _, ok := seen[meta["url"]]; ok {
 			continue
 		}
