@@ -2,6 +2,7 @@ package cookies
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,7 +18,8 @@ import (
 )
 
 func ytDlpReleaseAssetName() string {
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "windows":
 		switch runtime.GOARCH {
 		case "386":
 			return "yt-dlp_x86.exe"
@@ -26,13 +28,11 @@ func ytDlpReleaseAssetName() string {
 		case "arm64":
 			return "yt-dlp_arm64.exe"
 		}
-	}
-
-	if runtime.GOOS == "linux" {
+	case "linux":
 		cmd := exec.Command("ldd", "--version")
 		out, _ := cmd.CombinedOutput()
-		output := strings.ToLower(string(out))
-		useMusl := strings.Contains(output, "musl")
+		out = bytes.ToLower(out)
+		useMusl := bytes.Contains(out, []byte("musl"))
 
 		switch {
 		case runtime.GOARCH == "amd64" && useMusl:
@@ -44,12 +44,13 @@ func ytDlpReleaseAssetName() string {
 		case runtime.GOARCH == "arm64":
 			return "yt-dlp_linux_aarch64"
 		}
+	default:
+		return "yt-dlp_macos"
 	}
 
-	return "yt-dlp_macos"
 }
 
-func ytDlpReleaseAssetURL() string {
+func ytDlpReleaseAssetDownloadURL() string {
 	u := url.URL{
 		Scheme: "https",
 		Host:   "github.com",
@@ -67,7 +68,7 @@ func ytDlpReleaseAssetURL() string {
 }
 
 func downloadYtDlpReleaseAsset() error {
-	resp, err := http.Get(ytDlpReleaseAssetURL())
+	resp, err := http.Get(ytDlpReleaseAssetDownloadURL())
 	if err != nil {
 		return err
 	}

@@ -1,25 +1,28 @@
 package main
 
-// https://www.reddit.com/subreddits/mine
-
 import (
 	"flag"
 	"fmt"
+	"os"
 
 	"raccoon/internal/downloader"
-	"raccoon/internal/extractor/reddit"
+	"raccoon/internal/extractor"
 )
 
-var user string
+var browser string
+var profile string
+var username string
 
 func init() {
-	flag.StringVar(&user, "user", "", "")
+	flag.StringVar(&browser, "browser", os.Getenv("BROWSER"), "")
+	flag.StringVar(&profile, "profile", os.Getenv("PROFILE"), "")
+	flag.StringVar(&username, "username", os.Getenv("USERNAME"), "")
 	flag.Parse()
 }
 
 func main() {
 	extractor := reddit.RedditOptions{
-		User: user,
+		Username: username,
 		// After:  "12/11/2026 00:00:00",
 		// Before: "12/11/2026 22:00:00",
 	}

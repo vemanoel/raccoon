@@ -1,4 +1,4 @@
-package reddit
+package extractor
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"raccoon/internal/cookies"
-	"raccoon/internal/httpclient"
+	"raccoon/internal/request"
 )
 
 type result struct {
@@ -191,13 +191,6 @@ func (self *RedditOptions) Filter(post *postData) map[string]string {
 }
 
 func (self *RedditOptions) fetchRedditApi(ch chan<- result) {
-	client := httpclient.Client{
-		Limiter: &httpclient.Limiter{
-			MinInterval: time.Second,
-			MaxInterval: time.Second * 10,
-		},
-	}
-
 	cookies, err := cookies.Get(
 		cookies.Options{
 			Names: []string{
@@ -213,6 +206,14 @@ func (self *RedditOptions) fetchRedditApi(ch chan<- result) {
 	if err != nil {
 		ch <- result{err: err}
 		return
+	}
+
+	req := request.Request{
+		Cookies: cookies,
+		Limiter: &request.RequestLimiter{
+			MinInterval: time.Second,
+			MaxInterval: time.Second * 10,
+		},
 	}
 
 	after := new(string)
@@ -235,18 +236,7 @@ func (self *RedditOptions) fetchRedditApi(ch chan<- result) {
 			RawQuery: q.Encode(),
 		}
 
-		req, err := httpclient.NewRequest(
-			http.MethodGet,
-			u.String(),
-		)
-		if err != nil {
-			ch <- result{err: err}
-			return
-		}
-
-		req.AddCookies(cookies...)
-
-		resp, err := client.Do(req)
+		resp, err := req.Get(u.String())
 		if err != nil {
 			ch <- result{err: err}
 			return
@@ -299,7 +289,7 @@ func (self *RedditOptions) fetchRedditApi(ch chan<- result) {
 }
 
 func (self *RedditOptions) fetchArcticShiftApi(ch chan<- result) {
-	var client httpclient.Client
+	var req request.Request
 
 	before := time.Now().UTC().Unix()
 
@@ -318,16 +308,7 @@ func (self *RedditOptions) fetchArcticShiftApi(ch chan<- result) {
 			RawQuery: q.Encode(),
 		}
 
-		req, err := httpclient.NewRequest(
-			http.MethodGet,
-			u.String(),
-		)
-		if err != nil {
-			ch <- result{err: err}
-			return
-		}
-
-		resp, err := client.Do(req)
+		resp, err := req.Get(u.String())
 		if err != nil {
 			ch <- result{err: err}
 			return
