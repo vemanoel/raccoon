@@ -1,35 +1,17 @@
 package downloader
 
 import (
-	"fmt"
+	// "fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
 	"raccoon/internal/httpclient"
+	"raccoon/internal/progress"
 )
-
-type progressReader struct {
-	reader  io.Reader
-	total   int64
-	current int64
-}
-
-func (self *progressReader) Read(b []byte) (int, error) {
-	n, err := self.reader.Read(b)
-	self.current += int64(n)
-
-	if self.total > 0 {
-		percent := float64(self.current) / float64(self.total) * 100
-		fmt.Printf("\r%.2f%% (%d / %d bytes)", percent, self.current, self.total)
-	} else {
-		fmt.Printf("\r%d bytes baixados", self.current)
-	}
-
-	return n, err
-}
 
 func parseOutTmpl(s string, meta map[string]string) (string, error) {
 	tmpl := template.Must(template.New("out").Parse(s))
@@ -73,13 +55,13 @@ func Download(outTmpl string, meta map[string]string) error {
 	defer resp.Body().Close()
 
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf(
-			"unexpected status code: %d",
-			resp.StatusCode(),
-		)
+		return nil
 	}
 
-	return nil
+	err = os.MkdirAll(filepath.Dir(out), 0755)
+	if err != nil {
+		return err
+	}
 
 	f, err := os.Create(out)
 	if err != nil {
@@ -87,13 +69,21 @@ func Download(outTmpl string, meta map[string]string) error {
 	}
 	defer f.Close()
 
-	progress := &progressReader{
-		reader: resp.Body(),
-		total:  resp.ContentLength(),
+	bar := progress.New(
+		resp.Body(),
+		resp.ContentLength(),
+	)
+
+	bar.SetDescription(meta["name"] + " " + meta["url"])
+
+	_, err = io.Copy(f, bar)
+
+	if err != nil {
+		bar.Finish("failed!")
+		return err
 	}
 
-	_, err = io.Copy(f, progress)
-	fmt.Println()
+	bar.Finish("done!")
 
-	return err
+	return nil
 }
