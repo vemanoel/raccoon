@@ -1,6 +1,7 @@
 package extractor
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -223,7 +224,7 @@ func (self *RedditOptions) fetchRedditApi(ch chan<- result) {
 			return
 		}
 
-		var json struct {
+		var j struct {
 			Data struct {
 				After    *string `json:"after"`
 				Children []struct {
@@ -233,7 +234,7 @@ func (self *RedditOptions) fetchRedditApi(ch chan<- result) {
 			} `json:"data"`
 		}
 
-		err = resp.JSON(&json)
+		err := json.NewDecoder(resp.Body).Decode(&j)
 
 		resp.Body.Close()
 
@@ -242,19 +243,19 @@ func (self *RedditOptions) fetchRedditApi(ch chan<- result) {
 			return
 		}
 
-		for i := range json.Data.Children {
-			child := json.Data.Children[i]
+		for i := range j.Data.Children {
+			child := j.Data.Children[i]
 			meta := self.Filter(&child.Data)
 			if meta != nil {
 				ch <- result{meta: meta}
 			}
 		}
 
-		if json.Data.After == nil {
+		if j.Data.After == nil {
 			break
 		}
 
-		after = json.Data.After
+		after = j.Data.After
 	}
 }
 
