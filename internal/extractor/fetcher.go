@@ -212,12 +212,12 @@ func (self *RedditOptions) fetchRedditApi(ch chan<- result) {
 			return
 		}
 
-		if resp.StatusCode() != http.StatusOK {
-			resp.Body().Close()
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
 			ch <- result{
 				err: fmt.Errorf(
 					"unexpected status code: %d",
-					resp.StatusCode(),
+					resp.StatusCode,
 				),
 			}
 			return
@@ -235,7 +235,7 @@ func (self *RedditOptions) fetchRedditApi(ch chan<- result) {
 
 		err = resp.JSON(&json)
 
-		resp.Body().Close()
+		resp.Body.Close()
 
 		if err != nil {
 			ch <- result{err: err}
