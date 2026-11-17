@@ -234,7 +234,7 @@ func (self *RedditOptions) fetchRedditApi(ch chan<- result) {
 			} `json:"data"`
 		}
 
-		err := json.NewDecoder(resp.Body).Decode(&j)
+		err = json.NewDecoder(resp.Body).Decode(&j)
 
 		resp.Body.Close()
 
@@ -285,48 +285,48 @@ func (self *RedditOptions) fetchArcticShiftApi(ch chan<- result) {
 			return
 		}
 
-		if resp.StatusCode() != http.StatusOK {
-			resp.Body().Close()
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
 			ch <- result{
 				err: fmt.Errorf(
 					"unexpected status code: %d",
-					resp.StatusCode(),
+					resp.StatusCode,
 				),
 			}
 			return
 		}
 
-		var json struct {
+		var j struct {
 			Error *string    `json:"error"`
 			Data  []postData `json:"data"`
 		}
 
-		err = resp.JSON(&json)
+		err = json.NewDecoder(resp.Body).Decode(&j)
 
-		resp.Body().Close()
+		resp.Body.Close()
 
 		if err != nil {
 			ch <- result{err: err}
 			return
 		}
 
-		if json.Error != nil {
-			ch <- result{err: errors.New(*json.Error)}
+		if j.Error != nil {
+			ch <- result{err: errors.New(*j.Error)}
 			return
 		}
 
-		for i := range json.Data {
-			meta := self.Filter(&json.Data[i])
+		for i := range j.Data {
+			meta := self.Filter(&j.Data[i])
 			if meta != nil {
 				ch <- result{meta: meta}
 			}
 		}
 
-		if len(json.Data) == 0 || len(json.Data) < 100 {
+		if len(j.Data) == 0 || len(j.Data) < 100 {
 			break
 		}
 
-		before = int64(json.Data[len(json.Data)-1].CreatedUTC)
+		before = int64(j.Data[len(j.Data)-1].CreatedUTC)
 	}
 }
 
