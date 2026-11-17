@@ -1,4 +1,4 @@
-package httpclient
+package request
 
 import (
 	"math/rand/v2"
@@ -21,7 +21,7 @@ type Request struct {
 	Timeout time.Duration
 	Cookies []*http.Cookie
 	Headers []*http.Header
-	Limiter *FetcherLimiter
+	Limiter *RequestLimiter
 }
 
 func (self *RequestLimiter) wait() {
