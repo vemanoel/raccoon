@@ -23,11 +23,6 @@ func readBrowserCookies() ([]byte, error) {
 		return nil, err
 	}
 
-	err = os.Remove("yt-dlp")
-	if err != nil {
-		return nil, err
-	}
-
 	return data, nil
 }
 
