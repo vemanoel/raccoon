@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"raccoon/internal/httpclient"
+	"raccoon/internal/request"
 	"raccoon/internal/progress"
 )
 
