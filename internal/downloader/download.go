@@ -44,9 +44,9 @@ func Download(outTmpl string, meta map[string]string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body().Close()
+	defer resp.Body.Close()
 
-	if resp.StatusCode() != http.StatusOK {
+	if resp.StatusCode != http.StatusOK {
 		return nil
 	}
 
@@ -62,8 +62,8 @@ func Download(outTmpl string, meta map[string]string) error {
 	defer f.Close()
 
 	bar := progress.New(
-		resp.Body(),
-		resp.ContentLength(),
+		resp.Body,
+		resp.ContentLength,
 	)
 
 	bar.SetDescription(meta["name"] + " " + meta["url"])
