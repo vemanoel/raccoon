@@ -18,7 +18,7 @@ func init() {
 
 func main() {
 	opts := extractor.RedditOptions{
-		Username: username,
+		User: username,
 	}
 	medias, err := opts.Extract()
 	if err != nil {
