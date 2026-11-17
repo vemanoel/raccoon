@@ -38,17 +38,9 @@ func Download(outTmpl string, meta map[string]string) error {
 		return err
 	}
 
-	var client httpclient.Client
+	var req request.Request
 
-	req, err := httpclient.NewRequest(
-		http.MethodGet,
-		meta["url"],
-	)
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Do(req)
+	resp, err := req.Get(meta["url"])
 	if err != nil {
 		return err
 	}
