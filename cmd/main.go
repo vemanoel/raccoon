@@ -17,10 +17,10 @@ func init() {
 }
 
 func main() {
-	extractor := reddit.RedditOptions{
+	opts := extractor.RedditOptions{
 		Username: username,
 	}
-	medias, err := extractor.Extract()
+	medias, err := opts.Extract()
 	if err != nil {
 		panic(err)
 	}
