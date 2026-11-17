@@ -2,15 +2,8 @@ package cookies
 
 import (
 	"bufio"
-	"bytes"
-	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"os"
-	"os/exec"
-	"path"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
