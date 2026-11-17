@@ -40,10 +40,10 @@ type postData struct {
 	Domain      string  `json:"domain"`
 	SecureMedia *struct {
 		RedditVideo *struct {
-			FallbackURL string `json:"fallback_url"`
+			HLS_URL *string `json:"hls_url"`
 		} `json:"reddit_video"`
 		Oembed *struct {
-			Thumbnail string `json:"thumbnail_url"`
+			ThumbnailURL *string `json:"thumbnail_url"`
 		} `json:"oembed"`
 	} `json:"secure_media"`
 	MediaMetadata map[string]struct {
@@ -53,77 +53,47 @@ type postData struct {
 	} `json:"media_metadata"`
 }
 
-func (self *RedditOptions) Validate() error {
-	const layout = "02/01/2006 15:04:05"
-
-	var err error
-
-	if self.After != "" {
-		self.after, err = time.Parse(layout, self.After)
-		if err != nil {
-			return fmt.Errorf("--after: invalid date format")
-		}
-	}
-
-	if self.Before != "" {
-		self.before, err = time.Parse(layout, self.Before)
-		if err != nil {
-			return fmt.Errorf("--before: invalid date format")
-		}
-	} else if !self.after.IsZero() {
-		self.before = time.Now().UTC()
-	}
-
-	if !self.after.IsZero() && !self.before.IsZero() &&
-		self.after.After(self.before) {
-		return errors.New("--after cannot be later than --before")
-	}
-
-	return nil
-}
-
 func (self *RedditOptions) Filter(post *postData) map[string]string {
-	created := time.Unix(int64(post.CreatedUTC), 0).UTC()
-
-	if !self.after.IsZero() && created.Before(self.after) {
+	if strings.TrimSpace(post.URL) == "" {
 		return nil
 	}
 
-	if !self.before.IsZero() && created.After(self.before) {
-		return nil
+	meta := make(map[string]string)
+
+    if post.SecureMedia != nil {
+		if post.SecureMedia.Oembed.ThumbnailURL == nil {
+			return nil
+		}
+
+		u, err := url.Parse(*post.SecureMedia.Oembed.ThumbnailURL)
+		if err != nil {
+			return nil
+		}
+
+		if u.Host != "media.redgifs.com" {
+			return nil
+		}
+
+		if !strings.HasSuffix(u.Path, "-poster.jpg") {
+			return nil
+		}
+
+		u.Path = strings.TrimSuffix(u.Path, "-poster.jpg")
+
+		meta["name"] = path.Base(u.Path)
+		meta["url"] = u.String() + ".mp4"
+
+		return meta
 	}
 
-	meta := map[string]string{
-		"site":        "reddit",
-		"uploader":    post.Author,
-		"upload_date": created.Format("01-02-2006_15-04-05"),
-	}
-
-	if post.Domain == "redgifs.com" {
-		if post.SecureMedia != nil {
-			u, err := url.Parse(post.SecureMedia.Oembed.Thumbnail)
+	if post.MediaMetadata != nil {
+		for k, v := range post.MediaMetadata {
+			u, err := url.Parse(v.S.U)
 			if err != nil {
 				return nil
 			}
 
-			// u.Scheme = "https"
-
-			u.Path = strings.Replace(u.Path, "-poster.jpg", "", 1)
-
-			meta["site"] = "redgifs"
-
-			meta["name"] = path.Base(u.Path)
-			meta["url"] = u.String() + ".mp4"
-			meta["format"] = "mp4"
-
-			return meta
-		}
-	}
-
-	if post.Domain == "reddit.com" && post.MediaMetadata != nil {
-		for k, v := range post.MediaMetadata {
-			u, err := url.Parse(v.S.U)
-			if err != nil {
+			if u.Host != "preview.redd.it" {
 				return nil
 			}
 
@@ -132,11 +102,8 @@ func (self *RedditOptions) Filter(post *postData) map[string]string {
 			u.RawQuery = ""
 			u.ForceQuery = false
 
-			meta["site"] = "gallery-item"
-
 			meta["name"] = k
 			meta["url"] = u.String()
-			meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
 
 			return meta
 		}
@@ -145,34 +112,37 @@ func (self *RedditOptions) Filter(post *postData) map[string]string {
 	if post.Domain == "i.redd.it" {
 		u, err := url.Parse(post.URL)
 		if err == nil {
-			meta["image"] = "redgifs"
-
-			meta["name"] = post.ID
-			meta["url"] = u.String()
-			meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
-
-			return meta
+			return nil
 		}
+		
+		meta["name"] = post.ID
+		meta["url"] = u.String()
+
+		return meta
 	}
 
 	if post.Domain == "v.redd.it" {
-		if post.SecureMedia != nil {
-			u, err := url.Parse(post.SecureMedia.RedditVideo.FallbackURL)
-			if err != nil {
+	    if post.SecureMedia != nil {
+			if post.SecureMedia.RedditVideo.HLS_URL == nil {
 				return nil
 			}
 
-			u.Fragment = ""
-			u.RawQuery = ""
-			u.ForceQuery = false
+		    u, err := url.Parse(*post.SecureMedia.RedditVideo.HLS_URL)
+		    if err != nil {
+		    	return nil
+		    }
 
-			meta["site"] = "video-secure_media"
+		    u.Fragment = ""
+		    u.RawQuery = ""
+		    u.ForceQuery = false
 
-			meta["name"] = post.ID
-			meta["url"] = u.String()
-			meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
+		    meta["site"] = "video-secure_media"
 
-			return meta
+		    meta["name"] = post.ID
+		    meta["url"] = u.String()
+		    meta["format"] = strings.TrimPrefix(filepath.Ext(u.Path), ".")
+
+		    return meta
 		} else {
 			u, err := url.Parse(post.URL)
 			if err != nil {
