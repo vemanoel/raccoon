@@ -331,11 +331,6 @@ func (self *RedditOptions) fetchArcticShiftApi(ch chan<- result) {
 }
 
 func (self *RedditOptions) Extract() ([]map[string]string, error) {
-	err := self.Validate()
-	if err != nil {
-		return nil, err
-	}
-
 	var wg sync.WaitGroup
 
 	wg.Add(2)
